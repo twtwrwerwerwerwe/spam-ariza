@@ -1,9 +1,33 @@
-.env
-*.db
-*.db-journal
+# Python
 __pycache__/
-*.pyc
-logs/
-exports/
-backups/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
 .venv/
+
+# Environment variables
+.env
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Backup
+backups/
+exports/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
