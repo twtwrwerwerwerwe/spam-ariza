@@ -8,8 +8,6 @@ __pycache__/
 venv/
 .venv/
 
-# Environment variables
-.env
 
 # Database
 *.db
