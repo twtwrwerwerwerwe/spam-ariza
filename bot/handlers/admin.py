@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime
+from html import escape as h
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
@@ -23,7 +24,6 @@ from bot.database.models import (
     get_all_users,
     get_ticket,
     get_tickets_by_status,
-    is_admin,
     remove_admin,
 )
 from bot.filters.admin_filter import IsAdminFilter, IsSuperAdminFilter
@@ -73,9 +73,6 @@ async def admin_back(message: Message, state: FSMContext) -> None:
 @router.callback_query(F.data.startswith("accept_ticket:"))
 async def on_accept_ticket(callback: CallbackQuery, bot: Bot) -> None:
     admin_user = callback.from_user
-    if not await is_admin(admin_user.id):
-        await callback.answer("⛔ Sizda ruxsat yo'q.", show_alert=True)
-        return
 
     ticket_id = int(callback.data.split(":", 1)[1])
     ticket = await get_ticket(ticket_id)
@@ -95,14 +92,16 @@ async def on_accept_ticket(callback: CallbackQuery, bot: Bot) -> None:
 
     accepted_time = datetime.now().strftime("%Y-%m-%d %H:%M")
     new_text = (
-        "✅ Murojaat qabul qilindi\n\n"
-        f"👤 Ism: {ticket['full_name']}\n"
-        f"📱 Telefon: {ticket['phone']}\n"
-        f"📌 Kategoriya: {ticket['category']}\n"
-        f"🆔 Telegram ID: {ticket['telegram_id']}\n"
-        f"🔢 Murojaat raqami: #{ticket_id}\n\n"
-        f"👨‍💼 Admin: {admin_username}\n"
-        f"🕒 Vaqt: {accepted_time}"
+        "✅ <b>MUROJAAT QABUL QILINDI</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        f"👤 <b>Ism:</b> {h(ticket['full_name'])}\n\n"
+        f"📱 <b>Telefon:</b> <code>{h(ticket['phone'])}</code>\n\n"
+        f"📌 <b>Kategoriya:</b> {h(ticket['category'])}\n\n"
+        f"🆔 <b>Telegram ID:</b> <code>{ticket['telegram_id']}</code>\n\n"
+        f"🔢 <b>Murojaat raqami:</b> #{ticket_id}\n\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        f"👨‍💼 <b>Admin:</b> {h(admin_username)}\n\n"
+        f"🕒 <b>Vaqt:</b> {accepted_time}"
     )
 
     try:
@@ -138,10 +137,10 @@ async def show_statistics(message: Message) -> None:
 
     text = (
         "📊 STATISTIKA\n\n"
-        f"👥 Jami foydalanuvchilar: {total_users}\n"
-        f"📂 Jami murojaatlar: {total_tickets}\n"
-        f"🆕 Yangi murojaatlar: {new_tickets}\n"
-        f"✅ Qabul qilingan murojaatlar: {accepted_tickets}\n"
+        f"👥 Jami foydalanuvchilar: {total_users}\n\n"
+        f"📂 Jami murojaatlar: {total_tickets}\n\n"
+        f"🆕 Yangi murojaatlar: {new_tickets}\n\n"
+        f"✅ Qabul qilingan murojaatlar: {accepted_tickets}\n\n"
         f"📅 Bugungi murojaatlar: {today_tickets}"
     )
     await message.answer(text)
@@ -161,10 +160,11 @@ async def show_users(message: Message) -> None:
 
     lines = [f"👥 FOYDALANUVCHILAR (jami: {total})\n"]
     for user in users[:30]:
-        username = f"@{user['username']}" if user.get("username") else "—"
+        username = f"@{h(user['username'])}" if user.get("username") else "—"
+        full_name = h(user.get("full_name") or "—")
+        phone = h(user.get("phone") or "—")
         lines.append(
-            f"• {user.get('full_name') or '—'} | {user.get('phone') or '—'} | "
-            f"{username} | ID: {user['telegram_id']}"
+            f"• {full_name} | {phone} | {username} | ID: {user['telegram_id']}"
         )
     if total > 30:
         lines.append(f"\n... va yana {total - 30} ta foydalanuvchi.")
@@ -185,8 +185,8 @@ async def show_tickets(message: Message) -> None:
     lines = [f"📂 YANGI MUROJAATLAR (so'nggi {len(new_tickets)} ta)\n"]
     for ticket in new_tickets:
         lines.append(
-            f"#{ticket['id']} | {ticket['full_name']} | {ticket['phone']} | "
-            f"{ticket['category']} | {ticket['created_at']}"
+            f"#{ticket['id']} | {h(ticket['full_name'])} | {h(ticket['phone'])} | "
+            f"{h(ticket['category'])} | {ticket['created_at']}"
         )
     await message.answer("\n".join(lines))
 
@@ -216,6 +216,7 @@ async def receive_broadcast_text(message: Message, state: FSMContext) -> None:
     await message.answer(
         f"Quyidagi xabar barcha foydalanuvchilarga yuborilsinmi?\n\n{message.text}",
         reply_markup=get_broadcast_confirm_keyboard(),
+        parse_mode=None,
     )
     await state.set_state(BroadcastForm.waiting_for_confirmation)
 
@@ -239,7 +240,7 @@ async def broadcast_confirm(callback: CallbackQuery, state: FSMContext, bot: Bot
     failed = 0
     for user in users:
         try:
-            await bot.send_message(chat_id=user["telegram_id"], text=text)
+            await bot.send_message(chat_id=user["telegram_id"], text=text, parse_mode=None)
             sent += 1
         except Exception:
             failed += 1
